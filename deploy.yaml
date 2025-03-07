@@ -1,0 +1,59 @@
+version: "2.0"
+
+services:
+  qwq-model:
+    image: your-registry/qwq-32b:latest # Replace with your Docker image when built
+    expose:
+      - port: 8000
+        as: 80
+        to:
+          - global: true
+    env:
+      - PORT=8000
+    params:
+      storage:
+        data:
+          mount: /root/.cache/huggingface
+        shm:
+          mount: /dev/shm
+
+profiles:
+  compute:
+    qwq-model:
+      resources:
+        cpu:
+          units: 8.0
+        memory:
+          size: 64Gi
+        storage:
+          - size: 10Gi # Container filesystem
+          - name: data
+            size: 100Gi # For model weights
+            attributes:
+              persistent: true
+              class: beta3
+          - name: shm
+            size: 16Gi # For shared memory (inter-process communication)
+            attributes:
+              persistent: false
+              class: ram
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: a100 # Prefer A100 (80GB) for best performance
+                - model: a10  # A10 as fallback
+
+  placement:
+    akash:
+      pricing:
+        qwq-model:
+          denom: uakt
+          amount: 500000 # Adjust bid amount as needed (GPUs require higher bids)
+
+deployment:
+  qwq-model:
+    akash:
+      profile: qwq-model
+      count: 1
